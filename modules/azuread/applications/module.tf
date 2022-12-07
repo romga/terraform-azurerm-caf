@@ -6,13 +6,8 @@ resource "azuread_application" "app" {
     var.client_config.object_id
   ]
 
-  reply_urls                 = try(var.settings.reply_urls, null)
-  logout_url                 = try(var.settings.logout_url, null)
   identifier_uris            = try(var.settings.identifier_uris, null)
-  available_to_other_tenants = try(var.settings.available_to_other_tenants, false)
-  public_client              = try(var.settings.public_client, false)
-  oauth2_allow_implicit_flow = try(var.settings.oauth2_allow_implicit_flow, false)
-  group_membership_claims    = try(var.settings.group_membership_claims, "All")
+  group_membership_claims    = try(var.settings.group_membership_claims, ["All"])
   prevent_duplicate_names    = try(var.settings.prevent_duplicate_names, false)
 
   dynamic "required_resource_access" {
@@ -68,8 +63,8 @@ resource "azuread_service_principal" "app" {
 }
 
 resource "azuread_service_principal_password" "pwd" {
+  display_name = azuread_service_principal.app.display_name
   service_principal_id = azuread_service_principal.app.id
-  value                = random_password.pwd.result
   end_date             = timeadd(time_rotating.pwd.id, format("%sh", local.password_policy.expire_in_days * 24))
 
   lifecycle {
@@ -86,15 +81,4 @@ resource "time_rotating" "pwd" {
   rotation_days    = try(local.password_policy.rotation.days, null)
   rotation_months  = try(local.password_policy.rotation.months, null)
   rotation_years   = try(local.password_policy.rotation.years, null)
-}
-
-# Will force the password to change every month
-resource "random_password" "pwd" {
-  keepers = {
-    frequency = time_rotating.pwd.id
-  }
-  length  = local.password_policy.length
-  special = local.password_policy.special
-  upper   = local.password_policy.upper
-  numeric = local.password_policy.number
 }
